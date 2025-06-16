@@ -1,4 +1,4 @@
-# %% [markdown]
+f# %% [markdown]
 # ## LIBRERÍAS
 
 # %%
@@ -89,8 +89,9 @@ if menu == "Formulario":
         canal = st.selectbox("Canal", ["Coink", "Coopcentral"])
         obs_tes = st.text_area("Observación (opcional)", key="obs_tes")
 
-        pendientes_hoy = df_neg[(df_neg["Fecha"] == fecha_ing) & (df_neg["Estado"] == "Pendiente")]
-        opciones = pendientes_hoy["ID"].tolist()
+        df_neg["Fecha"] = pd.to_datetime(df_neg["Fecha"]).dt.date
+        pendientes_dia = df_neg[(df_neg["Estado"] == "Pendiente") & (df_neg["Fecha"] == fecha_ing)]
+        opciones = pendientes_dia["ID"].tolist()
         seleccionadas = st.multiselect("Selecciona operaciones a asignar", opciones)
 
         submit_tes = st.form_submit_button("Registrar Ingreso")
