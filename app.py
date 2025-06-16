@@ -98,10 +98,10 @@ if opcion == "Registro de Operaciones":
                     dt_op = datetime.strptime(f"{primera['Fecha'].values[0]} {primera['Hora'].values[0]}", "%Y-%m-%d %H:%M")
                     dt_ing = datetime.strptime(f"{fecha_ing} {hora_ing}", "%Y-%m-%d %H:%M")
                     demora = round((dt_ing - dt_op).total_seconds() / 60, 2)
-                    id_ingreso = f"{fecha_ing}_{hora_ingreso.strftime('%H%M%S')}"
+                    id_ingreso = f"{fecha_ing}_{hora_ing.strftime.replace(':','')}"
 
                     df_ing = pd.concat([df_ing, pd.DataFrame([{
-                        "ID": id_ingreso
+                        "ID": id_ingreso,
                         "Fecha": fecha_ing,
                         "Hora Ingreso": hora_ing,
                         "Valor Recibido": valor,
@@ -153,10 +153,10 @@ elif opcion == "Historial y Reportes":
             st.success("Registro eliminado correctamente.")
         else:
             st.warning("ID no encontrado en las negociaciones.")
-    if id_eliminar in df_ing["ID"].values:
-        df_ing = df_ing[df_ing["ID"] !=id_eliminar]
+    if id_a_borrar in df_ing["ID"].values:
+        df_ing = df_ing[df_ing["ID"] !=id_a_borrar]
         guardar_datos(df_neg, df_ing)
         st.sucess("Registro eliminado correctamente.")
-        eliminado = True
+
 
 
