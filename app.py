@@ -15,6 +15,7 @@ ARCHIVO_EXCEL = "registro_operaciones_bitso.xlsx"
 NEGOCIACIONES_SHEET = "Negociaciones"
 INGRESOS_SHEET = "Ingresos"
 
+
 def init_excel():
     if not Path(ARCHIVO_EXCEL).exists():
         with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl") as writer:
@@ -26,6 +27,7 @@ def init_excel():
                 "Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)"
             ]).to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
 
+
 def cargar_datos():
     with pd.ExcelWriter(ARCHIVO_EXCEL, mode="a", engine="openpyxl", if_sheet_exists="overlay") as writer:
         pass  # solo asegura que existe
@@ -33,10 +35,12 @@ def cargar_datos():
     df_ing = pd.read_excel(ARCHIVO_EXCEL, sheet_name=INGRESOS_SHEET)
     return df_neg, df_ing
 
+
 def guardar_datos(df_neg, df_ing):
     with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl", mode="w") as writer:
         df_neg.to_excel(writer, sheet_name=NEGOCIACIONES_SHEET, index=False)
         df_ing.to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
+
 
 # %% [markdown]
 # ## INTERFAZ
@@ -100,12 +104,11 @@ with st.form("form_tesoreria"):
             else:
                 break
 
-        diferencia = valor - sum(df_neg[df_neg["ID"].isin(asignaciones)]["Esperado COP"])
+        diferencia = valor - sum(df_neg[df_neg["ID"].isin([id.replace(" (parcial)", "") for id in asignaciones])]["Esperado COP"])
         demora = None
         if asignaciones:
-            fecha_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")]["Fecha"].values[0]
-            hora_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")]["Hora"].values[0]
-            dt_neg = datetime.combine(pd.to_datetime(fecha_primera).date(), datetime.strptime(hora_primera, "%H:%M").time())
+            fila_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")].iloc[0]
+            dt_neg = datetime.combine(pd.to_datetime(fila_primera["Fecha"]).date(), datetime.strptime(fila_primera["Hora"], "%H:%M").time())
             dt_ing = datetime.combine(fecha_ing, hora_ing)
             demora = round((dt_ing - dt_neg).total_seconds() / 60, 2)
 
@@ -129,11 +132,18 @@ st.subheader("Historial de Negociaciones e Ingresos")
 tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
 
 with tab1:
-    df_neg["Fecha"] = pd.to_datetime(df_neg["Fecha"]).dt.date
-    st.dataframe(df_neg.sort_values("Fecha", ascending=False), use_container_width=True)
+    try:
+        df_neg["Fecha"] = pd.to_datetime(df_neg["Fecha"], errors="coerce")
+        st.dataframe(df_neg.sort_values("Fecha", ascending=False), use_container_width=True)
+    except Exception as e:
+        st.warning(f"Error cargando negociaciones: {e}")
 
 with tab2:
-    st.dataframe(df_ing.sort_values("Fecha", ascending=False), use_container_width=True)
+    try:
+        df_ing["Fecha"] = pd.to_datetime(df_ing["Fecha"], errors="coerce")
+        st.dataframe(df_ing.sort_values("Fecha", ascending=False), use_container_width=True)
+    except Exception as e:
+        st.warning(f"Error cargando ingresos: {e}")
 
 # === DESCARGA EXCEL ===
 st.markdown("---")
@@ -143,12 +153,14 @@ st.download_button(
     file_name="registro_operaciones_bitso.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
+
+# === RESUMEN ===
 st.markdown("---")
 st.subheader("📊 Historial y Resumen Diario")
 
 try:
     df_ingresos = pd.read_excel(ARCHIVO_EXCEL, sheet_name="Ingresos")
-    df_ingresos["Fecha"] = pd.to_datetime(df_ingresos["Fecha"]).dt.date
+    df_ingresos["Fecha"] = pd.to_datetime(df_ingresos["Fecha"], errors="coerce")
 
     st.dataframe(df_ingresos.sort_values("Fecha", ascending=False), use_container_width=True)
 
@@ -169,39 +181,6 @@ try:
     )
 except Exception as e:
     st.warning(f"No se pudo mostrar el historial: {e}")
-# === ELIMINAR REGISTROS ===
-st.markdown("---")
-st.subheader("🗑️ Eliminar Registros")
-
-col1, col2 = st.columns(2)
-
-# Eliminar Negociación
-with col1:
-    st.markdown("### ❌ Negociación")
-    if not df_neg.empty:
-        id_neg = st.selectbox("Selecciona ID de negociación", df_neg["ID"], key="neg")
-        if st.button("Eliminar Negociación"):
-            df_neg = df_neg[df_neg["ID"] != id_neg]
-            guardar_datos(df_neg, df_ing)
-            st.success(f"Negociación con ID {id_neg} eliminada.")
-    else:
-        st.info("No hay negociaciones registradas.")
-
-# Eliminar Ingreso
-with col2:
-    st.markdown("### ❌ Ingreso")
-    if not df_ing.empty:
-        index_ing = st.selectbox("Selecciona índice de ingreso", df_ing.index, key="ing")
-        ingreso_info = df_ing.loc[index_ing]
-        st.write(f"💰 Valor recibido: {ingreso_info['Valor Recibido']} COP")
-        st.write(f"📅 Fecha: {ingreso_info['Fecha']} - 🕒 Hora: {ingreso_info['Hora Ingreso']}")
-
-        if st.button("Eliminar Ingreso"):
-            df_ing = df_ing.drop(index_ing).reset_index(drop=True)
-            guardar_datos(df_neg, df_ing)
-            st.success("Ingreso eliminado.")
-    else:
-        st.info("No hay ingresos registrados.")
 
 
 
