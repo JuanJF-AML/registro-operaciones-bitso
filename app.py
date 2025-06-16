@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Registro de Operaciones Bitso - Streamlit
+# ## LIBRERÍAS
 
 # %%
 import streamlit as st
@@ -8,151 +8,173 @@ from datetime import datetime
 from pathlib import Path
 
 # %% [markdown]
-# ## Configuración inicial
+# ## CONFIGURACIÓN INICIAL
 
 # %%
 ARCHIVO_EXCEL = "registro_operaciones_bitso.xlsx"
 NEGOCIACIONES_SHEET = "Negociaciones"
 INGRESOS_SHEET = "Ingresos"
 
-# Inicializa el archivo si no existe
+# Inicializa el archivo Excel si no existe
 def init_excel():
     if not Path(ARCHIVO_EXCEL).exists():
         with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl") as writer:
-            pd.DataFrame(columns=["Fecha", "Hora", "Monto USDT", "Tasa", "Esperado COP", "Estado", "ID"]).to_excel(writer, sheet_name=NEGOCIACIONES_SHEET, index=False)
-            pd.DataFrame(columns=["Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)"]).to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
+            pd.DataFrame(columns=[
+                "Fecha", "Hora", "Monto USDT", "Tasa", "Esperado COP", "Estado", "ID", "Observación"
+            ]).to_excel(writer, sheet_name=NEGOCIACIONES_SHEET, index=False)
 
-# Carga datos
+            pd.DataFrame(columns=[
+                "Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)", "Observación"
+            ]).to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
 
+# Carga los datos desde el archivo Excel
 def cargar_datos():
+    with pd.ExcelWriter(ARCHIVO_EXCEL, mode="a", engine="openpyxl", if_sheet_exists="overlay") as writer:
+        pass
     df_neg = pd.read_excel(ARCHIVO_EXCEL, sheet_name=NEGOCIACIONES_SHEET)
     df_ing = pd.read_excel(ARCHIVO_EXCEL, sheet_name=INGRESOS_SHEET)
     return df_neg, df_ing
 
-# Guarda datos
-
+# Guarda los datos en el archivo Excel
 def guardar_datos(df_neg, df_ing):
     with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl", mode="w") as writer:
         df_neg.to_excel(writer, sheet_name=NEGOCIACIONES_SHEET, index=False)
         df_ing.to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
 
-# Valida hora
-
-def parse_hora(texto):
-    try:
-        return datetime.strptime(texto.strip(), "%H:%M").time()
-    except:
-        return None
-
-# Formato COP
-
-def input_cop(label):
-    raw = st.text_input(label, value="", placeholder="Ej: 5000000")
-    raw = raw.replace(".", "").replace(",", "").strip()
-    try:
-        return float(raw)
-    except:
-        return 0.0
+# %% [markdown]
+# ## INTERFAZ
 
 # %%
 st.set_page_config(layout="centered", page_title="Registro Operaciones Bitso")
-st.title("Control de Operaciones Bitso")
+st.title("📋 Registro de Operaciones Bitso")
+
 init_excel()
 df_neg, df_ing = cargar_datos()
 
-# === Registro de Negociación ===
-st.header("1. Datos del Operador")
-with st.form("form_operador"):
-    fecha = st.date_input("Fecha de la operación", value=datetime.now().date())
-    monto = input_cop("Monto en USDT")
-    tasa = input_cop("Tasa negociada")
-    hora_texto = st.text_input("Hora de negociación (HH:MM)", value="00:00")
-    hora = parse_hora(hora_texto)
+menu = st.sidebar.radio("Navegación", ["Formulario", "Historial y Reportes", "Eliminar Registros"])
 
-    submit_op = st.form_submit_button("Registrar Negociación")
-    if submit_op:
-        if not hora:
-            st.error("Formato de hora incorrecto. Usa HH:MM")
-        else:
+if menu == "Formulario":
+    # === SECCIÓN OPERADOR ===
+    st.subheader("🧾 Registro de Negociación (Operador)")
+    with st.form("form_operador"):
+        fecha = st.date_input("Fecha", value=datetime.now().date())
+        hora = st.text_input("Hora Negociación (HH:MM)", value="00:00")
+        monto = st.number_input("Monto USDT", min_value=0.0, step=0.01, format="%0.2f")
+        tasa = st.number_input("Tasa negociada", min_value=0.0, step=1.0, format="%0.2f")
+        obs = st.text_area("Observación (opcional)")
+
+        submit_op = st.form_submit_button("Guardar Negociación")
+        if submit_op:
             esperado = monto * tasa
-            id_op = f"{fecha}_{hora.strftime('%H%M%S')}"
+            id_op = f"{fecha}_{hora.replace(':', '')}"
             df_neg = pd.concat([df_neg, pd.DataFrame([{
                 "Fecha": fecha,
-                "Hora": hora.strftime("%H:%M"),
+                "Hora": hora,
                 "Monto USDT": monto,
                 "Tasa": tasa,
                 "Esperado COP": esperado,
                 "Estado": "Pendiente",
-                "ID": id_op
+                "ID": id_op,
+                "Observación": obs
             }])], ignore_index=True)
             guardar_datos(df_neg, df_ing)
-            st.success(f"Operación registrada con ID: {id_op}")
+            st.success(f"✅ Negociación registrada con ID: {id_op}")
 
-# === Registro de Ingreso ===
-st.markdown("---")
-st.header("2. Datos de Tesorería (Ingreso COP)")
-with st.form("form_ingreso"):
-    fecha_ing = st.date_input("Fecha del ingreso", value=datetime.now().date(), key="fecha_tes")
-    hora_text = st.text_input("Hora de ingreso del dinero (HH:MM)", value="00:00")
-    hora_ing = parse_hora(hora_text)
-    valor = input_cop("Valor recibido en COP")
-    canal = st.selectbox("Canal de ingreso", ["Coink", "Coopcentral"])
+    # === SECCIÓN TESORERÍA ===
+    st.subheader("💵 Registro de Ingreso (Tesorería)")
+    with st.form("form_tesoreria"):
+        fecha_ing = st.date_input("Fecha del ingreso", value=datetime.now().date(), key="fecha_tes")
+        hora_ing = st.text_input("Hora del ingreso (HH:MM)", key="hora_tes")
+        valor = st.number_input("Valor recibido en COP", min_value=0.0, step=100.0, format="%0.2f")
+        canal = st.selectbox("Canal", ["Coink", "Coopcentral"])
+        obs_tes = st.text_area("Observación (opcional)", key="obs_tes")
 
-    # Mostrar operaciones pendientes de ese día
-    pendientes_dia = df_neg[(df_neg["Fecha"] == fecha_ing) & (df_neg["Estado"] == "Pendiente")]
-    opciones = pendientes_dia["ID"].tolist()
-    seleccionadas = st.multiselect("Selecciona las operaciones a las que se asigna este ingreso", opciones)
+        pendientes_hoy = df_neg[(df_neg["Fecha"] == fecha_ing) & (df_neg["Estado"] == "Pendiente")]
+        opciones = pendientes_hoy["ID"].tolist()
+        seleccionadas = st.multiselect("Selecciona operaciones a asignar", opciones)
 
-    submit_tes = st.form_submit_button("Registrar o actualizar operación")
+        submit_tes = st.form_submit_button("Registrar Ingreso")
+        if submit_tes:
+            total_asignado = df_neg[df_neg["ID"].isin(seleccionadas)]["Esperado COP"].sum()
+            diferencia = valor - total_asignado
 
-    if submit_tes:
-        if not hora_ing:
-            st.error("Formato de hora de ingreso inválido")
-        else:
-            total_esperado = df_neg[df_neg["ID"].isin(seleccionadas)]["Esperado COP"].sum()
-            diferencia = valor - total_esperado
-            demora = None
-            if seleccionadas:
-                primera = df_neg[df_neg["ID"] == seleccionadas[0]].iloc[0]
-                dt1 = datetime.strptime(f"{primera['Fecha']} {primera['Hora']}", "%Y-%m-%d %H:%M")
-                dt2 = datetime.combine(fecha_ing, hora_ing)
-                demora = round((dt2 - dt1).total_seconds() / 60, 2)
+            try:
+                hora_str = hora_ing.strip()
+                hora_dt = datetime.strptime(hora_str, "%H:%M").time()
+                fecha_primera = df_neg[df_neg["ID"] == seleccionadas[0]]["Fecha"].values[0]
+                hora_primera = df_neg[df_neg["ID"] == seleccionadas[0]]["Hora"].values[0]
+                dt_neg = datetime.strptime(f"{fecha_primera} {hora_primera}", "%Y-%m-%d %H:%M")
+                dt_ing = datetime.combine(fecha_ing, hora_dt)
+                demora = round((dt_ing - dt_neg).total_seconds() / 60, 2)
+            except:
+                demora = None
 
-                for sid in seleccionadas:
-                    df_neg.loc[df_neg["ID"] == sid, "Estado"] = "Pagado"
+            for op_id in seleccionadas:
+                idx = df_neg[df_neg["ID"] == op_id].index[0]
+                df_neg.at[idx, "Estado"] = "Pagado"
 
             df_ing = pd.concat([df_ing, pd.DataFrame([{
                 "Fecha": fecha_ing,
-                "Hora Ingreso": hora_ing.strftime("%H:%M"),
+                "Hora Ingreso": hora_ing,
                 "Valor Recibido": valor,
                 "Canal": canal,
                 "Asignado a": ", ".join(seleccionadas),
                 "Diferencia": diferencia,
-                "Demora (min)": demora
+                "Demora (min)": demora,
+                "Observación": obs_tes
             }])], ignore_index=True)
 
             guardar_datos(df_neg, df_ing)
-            st.success(f"Ingreso registrado y asignado a: {', '.join(seleccionadas)}")
+            st.success("✅ Ingreso registrado exitosamente.")
 
-# === Historial ===
-st.markdown("---")
-st.subheader("Historial de Operaciones")
-tabs = st.tabs(["Negociaciones", "Ingresos"])
+elif menu == "Historial y Reportes":
+    st.subheader("📜 Historial de Operaciones")
+    try:
+        df_neg, df_ing = cargar_datos()
+        tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
+        with tab1:
+            st.dataframe(df_neg.sort_values("Fecha", ascending=False), use_container_width=True)
+        with tab2:
+            st.dataframe(df_ing.sort_values("Fecha", ascending=False), use_container_width=True)
 
-with tabs[0]:
-    st.dataframe(df_neg.sort_values("Fecha", ascending=False), use_container_width=True)
+        st.download_button(
+            label="⬇️ Descargar Historial Completo",
+            data=open(ARCHIVO_EXCEL, "rb"),
+            file_name=ARCHIVO_EXCEL,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-with tabs[1]:
-    st.dataframe(df_ing.sort_values("Fecha", ascending=False), use_container_width=True)
+        resumen = df_ing.groupby(["Fecha", "Canal"]).agg({
+            "Valor Recibido": "sum",
+            "Diferencia": "sum",
+            "Demora (min)": "mean"
+        }).round(2).reset_index()
 
-# === Descargar ===
-st.download_button(
-    "Descargar Historial Completo",
-    data=open(ARCHIVO_EXCEL, "rb"),
-    file_name=ARCHIVO_EXCEL,
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+        st.subheader("📊 Resumen Diario por Canal")
+        st.dataframe(resumen, use_container_width=True)
 
+    except Exception as e:
+        st.warning(f"No se pudo mostrar el historial: {e}")
+
+elif menu == "Eliminar Registros":
+    st.subheader("🗑️ Eliminar registros manuales")
+    df_neg, df_ing = cargar_datos()
+    tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
+
+    with tab1:
+        id_borrar = st.selectbox("Selecciona negociación a eliminar", df_neg["ID"].tolist())
+        if st.button("Eliminar negociación"):
+            df_neg = df_neg[df_neg["ID"] != id_borrar]
+            guardar_datos(df_neg, df_ing)
+            st.success("Negociación eliminada.")
+
+    with tab2:
+        idxs = df_ing.index.tolist()
+        idx_sel = st.selectbox("Selecciona ingreso a eliminar", idxs)
+        if st.button("Eliminar ingreso"):
+            df_ing = df_ing.drop(index=idx_sel).reset_index(drop=True)
+            guardar_datos(df_neg, df_ing)
+            st.success("Ingreso eliminado.")
 
 
 
