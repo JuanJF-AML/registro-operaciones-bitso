@@ -168,6 +168,40 @@ try:
     )
 except Exception as e:
     st.warning(f"No se pudo mostrar el historial: {e}")
+# === ELIMINAR REGISTROS ===
+st.markdown("---")
+st.subheader("🗑️ Eliminar Registros")
+
+col1, col2 = st.columns(2)
+
+# Eliminar Negociación
+with col1:
+    st.markdown("### ❌ Negociación")
+    if not df_neg.empty:
+        id_neg = st.selectbox("Selecciona ID de negociación", df_neg["ID"], key="neg")
+        if st.button("Eliminar Negociación"):
+            df_neg = df_neg[df_neg["ID"] != id_neg]
+            guardar_datos(df_neg, df_ing)
+            st.success(f"Negociación con ID {id_neg} eliminada.")
+    else:
+        st.info("No hay negociaciones registradas.")
+
+# Eliminar Ingreso
+with col2:
+    st.markdown("### ❌ Ingreso")
+    if not df_ing.empty:
+        index_ing = st.selectbox("Selecciona índice de ingreso", df_ing.index, key="ing")
+        ingreso_info = df_ing.loc[index_ing]
+        st.write(f"💰 Valor recibido: {ingreso_info['Valor Recibido']} COP")
+        st.write(f"📅 Fecha: {ingreso_info['Fecha']} - 🕒 Hora: {ingreso_info['Hora Ingreso']}")
+
+        if st.button("Eliminar Ingreso"):
+            df_ing = df_ing.drop(index_ing).reset_index(drop=True)
+            guardar_datos(df_neg, df_ing)
+            st.success("Ingreso eliminado.")
+    else:
+        st.info("No hay ingresos registrados.")
+
 
 
 
