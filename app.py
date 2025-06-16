@@ -1,4 +1,4 @@
-# app.py
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -29,19 +29,19 @@ def guardar_datos(df_neg, df_ing):
         df_neg.to_excel(writer, sheet_name=HOJA_NEG, index=False)
         df_ing.to_excel(writer, sheet_name=HOJA_ING, index=False)
 
-# === INICIO STREAMLIT ===
+# STREAMLIT 
 st.set_page_config(layout="wide", page_title="Registro Bitso")
-st.sidebar.title("📋 Registro de Operaciones Bitso")
-opcion = st.sidebar.radio("Ir a:", ["📑 Registro de Operaciones", "📂 Historial y Reportes"])
+st.sidebar.title("Registro de Operaciones Bitso")
+opcion = st.sidebar.radio("Ir a:", ["Registro de Operaciones", "Historial y Reportes"])
 
 init_excel()
 df_neg, df_ing = cargar_datos()
 
-if opcion == "📑 Registro de Operaciones":
-    rol = st.radio("¿Qué rol estás registrando?", ["🧾 Operador", "💳 Tesorería"], horizontal=True)
+if opcion == "Registro de Operaciones":
+    rol = st.radio("¿Qué rol estás registrando?", ["Operador", "Tesorería"], horizontal=True)
 
-    if rol == "🧾 Operador":
-        st.header("🧾 Registro de Negociación (Operador)")
+    if rol == "Operador":
+        st.header("Registro de Negociación (Operador)")
         with st.form("form_op"):
             fecha = st.date_input("Fecha")
             hora = st.text_input("Hora de negociación (HH:MM)")
@@ -65,8 +65,8 @@ if opcion == "📑 Registro de Operaciones":
                 guardar_datos(df_neg, df_ing)
                 st.success(f"Negociación registrada con ID: {id_op}")
 
-    elif rol == "💳 Tesorería":
-        st.header("💳 Registro de Ingreso (Tesorería)")
+    elif rol == "Tesorería":
+        st.header("Registro de Ingreso (Tesorería)")
         with st.form("form_teso"):
             fecha_ing = st.date_input("Fecha del ingreso")
             hora_ing = st.text_input("Hora del ingreso (HH:MM)")
@@ -81,7 +81,7 @@ if opcion == "📑 Registro de Operaciones":
             boton_tes = st.form_submit_button("Registrar Ingreso")
             if boton_tes:
                 if not seleccionadas:
-                    st.warning("⚠️ Debes seleccionar al menos una operación para asignar.")
+                    st.warning("Debes seleccionar al menos una operación para asignar.")
                 else:
                     total_esperado = df_neg[df_neg["ID"].isin(seleccionadas)]["Esperado COP"].sum()
                     diferencia = valor - total_esperado
@@ -112,8 +112,8 @@ if opcion == "📑 Registro de Operaciones":
                     guardar_datos(df_neg, df_ing)
                     st.success(f"Ingreso registrado por {valor:,.0f} y asignado a: {', '.join(seleccionadas)}")
 
-elif opcion == "📂 Historial y Reportes":
-    st.title("📂 Historial y Reportes")
+elif opcion == "Historial y Reportes":
+    st.title("Historial y Reportes")
     col1, col2, col3 = st.columns(3)
     hoy = datetime.now().date()
     total_hoy = df_neg[df_neg["Fecha"] == hoy]["Esperado COP"].sum()
@@ -140,9 +140,9 @@ elif opcion == "📂 Historial y Reportes":
     with tab2:
         st.dataframe(df_ing.sort_values("Fecha", ascending=False), use_container_width=True)
 
-    st.download_button("📥 Descargar Excel Completo", data=open(ARCHIVO_EXCEL, "rb"), file_name=ARCHIVO_EXCEL)
+    st.download_button("Descargar Excel Completo", data=open(ARCHIVO_EXCEL, "rb"), file_name=ARCHIVO_EXCEL)
 
-    st.subheader("🗑️ Eliminar Registro")
+    st.subheader("Eliminar Registro")
     id_a_borrar = st.text_input("ID de la operación a eliminar")
     if st.button("Eliminar operación"):
         if id_a_borrar in df_neg["ID"].values:
@@ -150,6 +150,6 @@ elif opcion == "📂 Historial y Reportes":
             guardar_datos(df_neg, df_ing)
             st.success("Registro eliminado correctamente.")
         else:
-            st.warning("⚠️ ID no encontrado en las negociaciones.")
+            st.warning("ID no encontrado en las negociaciones.")
 
 
