@@ -1,126 +1,173 @@
+# %% [markdown]
+# ## LIBRERÍAS
+
+# %%
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-# === CONFIGURACIÓN INICIAL ===
-ARCHIVO_EXCEL = "registro_operaciones_bitso.xlsx"
+# %% [markdown]
+# ## CONFIGURACIÓN INICIAL
 
-# Inicializa el archivo Excel si no existe
+# %%
+ARCHIVO_EXCEL = "registro_operaciones_bitso.xlsx"
+NEGOCIACIONES_SHEET = "Negociaciones"
+INGRESOS_SHEET = "Ingresos"
+
 def init_excel():
     if not Path(ARCHIVO_EXCEL).exists():
-        df = pd.DataFrame(columns=[
-            "Fecha Operación", "Monto USDT", "Tasa Negociada", "Valor esperado COP",
-            "Hora Negociación", "Valor Recibido COP", "Hora Ingreso",
-            "Canal", "Diferencia", "Demora(min)"
-        ])
-        df.to_excel(ARCHIVO_EXCEL, index=False)
+        with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl") as writer:
+            pd.DataFrame(columns=[
+                "Fecha", "Hora", "Monto USDT", "Tasa", "Esperado COP", "Estado", "ID"
+            ]).to_excel(writer, sheet_name=NEGOCIACIONES_SHEET, index=False)
 
-# Registrar o actualizar operación
-def registrar_operacion(data):
-    df = pd.read_excel(ARCHIVO_EXCEL)
-    clave = (data["Fecha Operación"], data.get("Monto USDT"), data.get("Tasa Negociada"))
+            pd.DataFrame(columns=[
+                "Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)"
+            ]).to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
 
-    match = df[(df["Fecha Operación"] == clave[0]) &
-               (df["Monto USDT"] == clave[1]) &
-               (df["Tasa Negociada"] == clave[2])]
+def cargar_datos():
+    with pd.ExcelWriter(ARCHIVO_EXCEL, mode="a", engine="openpyxl", if_sheet_exists="overlay") as writer:
+        pass  # solo asegura que existe
+    df_neg = pd.read_excel(ARCHIVO_EXCEL, sheet_name=NEGOCIACIONES_SHEET)
+    df_ing = pd.read_excel(ARCHIVO_EXCEL, sheet_name=INGRESOS_SHEET)
+    return df_neg, df_ing
 
-    if not match.empty:
-        idx = match.index[0]
-        for col, val in data.items():
-            if val is not None:
-                df.at[idx, col] = val
-    else:
-        df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
+def guardar_datos(df_neg, df_ing):
+    with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl", mode="w") as writer:
+        df_neg.to_excel(writer, sheet_name=NEGOCIACIONES_SHEET, index=False)
+        df_ing.to_excel(writer, sheet_name=INGRESOS_SHEET, index=False)
 
-    df.to_excel(ARCHIVO_EXCEL, index=False)
+# %% [markdown]
+# ## INTERFAZ
 
-# === STREAMLIT ===
-st.set_page_config(layout="centered", page_title="Registro de Operaciones Bitso")
-st.title("Control de Operaciones Bitso")
+# %%
+st.set_page_config(layout="centered", page_title="Registro Operaciones Bitso")
+st.title("Registro de Operaciones Bitso")
+
 init_excel()
+df_neg, df_ing = cargar_datos()
 
-# === ROL ===
-rol = st.radio("¿Qué rol estás registrando?", ["Operador", "Tesorería"])
-deshabilitado_op = rol == "Tesorería"
-deshabilitado_teso = rol == "Operador"
+# === SECCIÓN OPERADOR ===
+st.subheader("🧾 Registro de Negociación (Operador)")
+with st.form("form_operador"):
+    fecha = st.date_input("Fecha", value=datetime.now().date())
+    hora = st.time_input("Hora Negociación")
+    monto = st.number_input("Monto USDT", min_value=0.0, step=0.01)
+    tasa = st.number_input("Tasa negociada", min_value=0.0, step=1.0)
 
-with st.form("form_operacion"):
-    st.subheader("1. Datos del Operador")
+    submit_op = st.form_submit_button("Guardar Negociación")
+    if submit_op:
+        esperado = monto * tasa
+        id_op = f"{fecha}_{hora.strftime('%H%M%S')}"
+        df_neg = pd.concat([df_neg, pd.DataFrame([{
+            "Fecha": fecha,
+            "Hora": hora.strftime("%H:%M"),
+            "Monto USDT": monto,
+            "Tasa": tasa,
+            "Esperado COP": esperado,
+            "Estado": "Pendiente",
+            "ID": id_op
+        }])], ignore_index=True)
+        guardar_datos(df_neg, df_ing)
+        st.success(f"Negociación registrada con ID: {id_op}")
 
-    fecha = st.date_input("Fecha de la operación", value=datetime.now().date(), disabled=False)
-    monto_usdt = st.number_input("Monto en USDT", min_value=0.0, step=0.01, disabled=deshabilitado_op)
-    tasa = st.number_input("Tasa negociada", min_value=0.0, step=1.0, disabled=deshabilitado_op)
-    hora_neg = st.time_input("Hora de negociación", disabled=deshabilitado_op)
+# === SECCIÓN TESORERÍA ===
+st.subheader("Registro de Ingreso (Tesorería)")
+with st.form("form_tesoreria"):
+    fecha_ing = st.date_input("Fecha del ingreso", value=datetime.now().date(), key="fecha_tes")
+    hora_ing = st.time_input("Hora del ingreso", key="hora_tes")
+    valor = st.number_input("Valor recibido en COP", min_value=0.0, step=100.0)
+    canal = st.selectbox("Canal", ["Coink", "Coopcentral"])
 
-    st.markdown("---")
-    st.subheader("2. Datos de Tesorería (Ingreso COP)")
+    submit_tes = st.form_submit_button("Registrar Ingreso")
+    if submit_tes:
+        pendientes = df_neg[df_neg["Estado"] == "Pendiente"].sort_values(["Fecha", "Hora"])
+        valor_restante = valor
+        asignaciones = []
 
-    valor_recibido = st.number_input("Valor recibido en COP", min_value=0.0, step=100.0, disabled=deshabilitado_teso)
-    hora_ingreso = st.time_input("Hora de ingreso del dinero", disabled=deshabilitado_teso)
-    canal = st.selectbox("Canal de ingreso", ["", "Coink", "Coopcentral"], disabled=deshabilitado_teso)
+        for idx, row in pendientes.iterrows():
+            esperado = row["Esperado COP"]
+            if valor_restante >= esperado:
+                df_neg.at[idx, "Estado"] = "Pagado"
+                asignaciones.append(row["ID"])
+                valor_restante -= esperado
+            elif valor_restante > 0:
+                df_neg.at[idx, "Esperado COP"] -= valor_restante
+                asignaciones.append(row["ID"] + " (parcial)")
+                valor_restante = 0
+                break
+            else:
+                break
 
-    submitted = st.form_submit_button("Registrar o actualizar operación")
+        diferencia = valor - sum(df_neg[df_neg["ID"].isin(asignaciones)]["Esperado COP"])
+        demora = None
+        if asignaciones:
+            fecha_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")]["Fecha"].values[0]
+            hora_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")]["Hora"].values[0]
+            dt_neg = datetime.strptime(f"{fecha_primera} {hora_primera}", "%Y-%m-%d %H:%M")
+            dt_ing = datetime.combine(fecha_ing, hora_ing)
+            demora = round((dt_ing - dt_neg).total_seconds() / 60, 2)
 
-    if submitted:
-        esperado = monto_usdt * tasa if monto_usdt and tasa else None
-        diferencia = abs(valor_recibido - esperado) if esperado and valor_recibido else None
-        demora = (
-            (datetime.combine(fecha, hora_ingreso) - datetime.combine(fecha, hora_neg)).total_seconds() / 60
-            if hora_ingreso and hora_neg else None
-        )
+        df_ing = pd.concat([df_ing, pd.DataFrame([{
+            "Fecha": fecha_ing,
+            "Hora Ingreso": hora_ing.strftime("%H:%M"),
+            "Valor Recibido": valor,
+            "Canal": canal,
+            "Asignado a": ", ".join(asignaciones) if asignaciones else "Sin asignar",
+            "Diferencia": diferencia,
+            "Demora (min)": demora
+        }])], ignore_index=True)
 
-        datos = {
-            "Fecha Operación": fecha,
-            "Monto USDT": monto_usdt if not deshabilitado_op else None,
-            "Tasa Negociada": tasa if not deshabilitado_op else None,
-            "Valor esperado COP": esperado if not deshabilitado_op else None,
-            "Hora Negociación": hora_neg.strftime("%H:%M") if not deshabilitado_op else None,
-            "Valor Recibido COP": valor_recibido if not deshabilitado_teso else None,
-            "Hora Ingreso": hora_ingreso.strftime("%H:%M") if not deshabilitado_teso else None,
-            "Canal": canal if not deshabilitado_teso else None,
-            "Diferencia": diferencia if diferencia else None,
-            "Demora(min)": round(demora, 2) if demora is not None else None
-        }
-
-        registrar_operacion(datos)
-
-        if diferencia and diferencia >= 1000:
-            st.warning(f"Diferencia entre esperado y recibido: {diferencia:,.0f} COP.")
-        elif diferencia:
-            st.success(f"Diferencia aceptable: {diferencia:,.0f} COP.")
-
-        if demora is not None:
-            st.info(f"Tiempo entre negociación e ingreso: {round(demora)} minutos.")
-
-        st.success("Registro actualizado correctamente.")
+        guardar_datos(df_neg, df_ing)
+        st.success(f"Ingreso registrado y asignado a: {', '.join(asignaciones)}")
 
 # === HISTORIAL ===
 st.markdown("---")
-st.subheader("Historial de Operaciones")
+st.subheader("Historial de Negociaciones e Ingresos")
+
+tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
+
+with tab1:
+    st.dataframe(df_neg.sort_values("Fecha", ascending=False), use_container_width=True)
+
+with tab2:
+    st.dataframe(df_ing.sort_values("Fecha", ascending=False), use_container_width=True)
+
+# === DESCARGA EXCEL ===
+st.markdown("---")
+st.download_button(
+    label="Descargar Excel Completo",
+    data=open(ARCHIVO_EXCEL, "rb"),
+    file_name="registro_operaciones_bitso.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+st.markdown("---")
+st.subheader("📊 Historial y Resumen Diario")
 
 try:
-    df_historial = pd.read_excel(ARCHIVO_EXCEL)
-    st.dataframe(df_historial.sort_values("Fecha Operación", ascending=False), use_container_width=True)
+    df_ingresos = pd.read_excel(ARCHIVO_EXCEL, sheet_name="Ingresos")
+    df_ingresos["Fecha"] = pd.to_datetime(df_ingresos["Fecha"]).dt.date
 
-    resumen = df_historial.groupby(["Fecha Operación", "Canal"]).agg({
-        "Valor esperado COP": "sum",
-        "Valor Recibido COP": "sum",
+    st.dataframe(df_ingresos.sort_values("Fecha", ascending=False), use_container_width=True)
+
+    resumen = df_ingresos.groupby(["Fecha", "Canal"]).agg({
+        "Valor Recibido": "sum",
         "Diferencia": "sum",
-        "Demora(min)": "mean"
+        "Demora (min)": "mean"
     }).round(2).reset_index()
 
     st.subheader("Resumen Diario por Canal")
     st.dataframe(resumen, use_container_width=True)
 
     st.download_button(
-        label="Descargar Historial de Operaciones",
+        label="⬇️ Descargar Historial Completo",
         data=open(ARCHIVO_EXCEL, "rb"),
         file_name=ARCHIVO_EXCEL,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 except Exception as e:
-    st.warning(f"No se pudo cargar el historial: {e}")
+    st.warning(f"No se pudo mostrar el historial: {e}")
 
 
 
