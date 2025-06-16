@@ -1,4 +1,4 @@
-f# %% [markdown]
+# %% [markdown]
 # ## LIBRERÍAS
 
 # %%
