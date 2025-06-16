@@ -105,7 +105,7 @@ with st.form("form_tesoreria"):
         if asignaciones:
             fecha_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")]["Fecha"].values[0]
             hora_primera = df_neg[df_neg["ID"] == asignaciones[0].replace(" (parcial)", "")]["Hora"].values[0]
-            dt_neg = datetime.strptime(f"{fecha_primera} {hora_primera}", "%Y-%m-%d %H:%M")
+            dt_neg = datetime.combine(pd.to_datetime(fecha_primera).date(), datetime.strptime(hora_primera, "%H:%M").time())
             dt_ing = datetime.combine(fecha_ing, hora_ing)
             demora = round((dt_ing - dt_neg).total_seconds() / 60, 2)
 
@@ -129,6 +129,7 @@ st.subheader("Historial de Negociaciones e Ingresos")
 tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
 
 with tab1:
+    df_neg["Fecha"] = pd.to_datetime(df_neg["Fecha"]).dt.date
     st.dataframe(df_neg.sort_values("Fecha", ascending=False), use_container_width=True)
 
 with tab2:
