@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -97,12 +96,11 @@ if opcion == "Registro de Operaciones":
                         else:
                             df_neg.at[idx, "Estado"] = "Parcial"
 
-                    # demora calculada con la primera op
                     primera = df_neg[df_neg["ID"] == seleccionadas[0]]
                     dt_op = datetime.strptime(f"{primera['Fecha'].values[0]} {primera['Hora'].values[0]}", "%Y-%m-%d %H:%M")
                     dt_ing = datetime.strptime(f"{fecha_ing} {hora_ing}", "%Y-%m-%d %H:%M")
                     demora = round((dt_ing - dt_op).total_seconds() / 60, 2)
-                    id_ingreso = f"{fecha_ing}_{hora_ing.strftime.replace(':','')}"
+                    id_ingreso = f"{fecha_ing}_{hora_ing.replace(':','')}"
 
                     df_ing = pd.concat([df_ing, pd.DataFrame([{
                         "ID": id_ingreso,
@@ -148,22 +146,23 @@ elif opcion == "Historial y Reportes":
 
     st.download_button("Descargar Excel Completo", data=open(ARCHIVO_EXCEL, "rb"), file_name=ARCHIVO_EXCEL)
 
- st.subheader("Eliminar Registro")
-id_a_borrar = st.text_input("ID de la operación a eliminar")
+    st.subheader("Eliminar Registro")
+    id_a_borrar = st.text_input("ID de la operación a eliminar")
 
-if st.button("Eliminar operación"):
-    eliminado = False
+    if st.button("Eliminar operación"):
+        eliminado = False
 
-    if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
-        df_neg = df_neg[df_neg["ID"].astype(str) != id_a_borrar]
-        eliminado = True
+        if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
+            df_neg = df_neg[df_neg["ID"].astype(str) != id_a_borrar]
+            eliminado = True
 
-    if "ID" in df_ing.columns and id_a_borrar in df_ing["ID"].astype(str).values:
-        df_ing = df_ing[df_ing["ID"].astype(str) != id_a_borrar]
-        eliminado = True
+        if "ID" in df_ing.columns and id_a_borrar in df_ing["ID"].astype(str).values:
+            df_ing = df_ing[df_ing["ID"].astype(str) != id_a_borrar]
+            eliminado = True
 
-    if eliminado:
-        guardar_datos(df_neg, df_ing)
-        st.success("Registro eliminado correctamente.")
-    else:
-        st.warning("❌ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
+        if eliminado:
+            guardar_datos(df_neg, df_ing)
+            st.success("Registro eliminado correctamente.")
+        else:
+            st.warning("❌ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
+
