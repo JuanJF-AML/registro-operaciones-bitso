@@ -146,17 +146,23 @@ elif opcion == "Historial y Reportes":
 
     st.subheader("Eliminar Registro")
     id_a_borrar = st.text_input("ID de la operación a eliminar")
+    
     if st.button("Eliminar operación"):
-        if id_a_borrar in df_neg["ID"].values:
-            df_neg = df_neg[df_neg["ID"] != id_a_borrar]
-            guardar_datos(df_neg, df_ing)
-            st.success("Registro eliminado correctamente.")
-        else:
-            st.warning("ID no encontrado en las negociaciones.")
-    if id_a_borrar in df_ing["ID"].values:
-        df_ing = df_ing[df_ing["ID"] !=id_a_borrar]
-        guardar_datos(df_neg, df_ing)
-        st.sucess("Registro eliminado correctamente.")
+        eliminado = False
+        
+if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
+        df_neg = df_neg[df_neg["ID"].astype(str) != id_a_borrar]
+        eliminado = True
 
+    # Intentar eliminar en Ingresos
+    if "ID" in df_ing.columns and id_a_borrar in df_ing["ID"].astype(str).values:
+        df_ing = df_ing[df_ing["ID"].astype(str) != id_a_borrar]
+        eliminado = True
+
+    if eliminado:
+        guardar_datos(df_neg, df_ing)
+        st.success("Registro eliminado correctamente.")
+    else:
+        st.warning("❌ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
 
 
