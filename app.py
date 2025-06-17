@@ -12,8 +12,12 @@ HOJA_ING = "Ingresos"
 def init_excel():
     if not Path(ARCHIVO_EXCEL).exists():
         with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl") as writer:
-            pd.DataFrame(columns=["Fecha", "Hora", "Monto USDT", "Tasa", "Esperado COP", "Estado", "ID", "Observacion"]).to_excel(writer, sheet_name=HOJA_NEG, index=False)
-            pd.DataFrame(columns=["ID","Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)", "Observacion"]).to_excel(writer, sheet_name=HOJA_ING, index=False)
+            pd.DataFrame(columns=[
+                "Fecha", "Hora", "Monto USDT", "Tasa", "Esperado COP", "Estado", "ID", "Observacion"
+            ]).to_excel(writer, sheet_name=HOJA_NEG, index=False)
+            pd.DataFrame(columns=[
+                "ID", "Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)", "Observacion"
+            ]).to_excel(writer, sheet_name=HOJA_ING, index=False)
 
 # Carga ambos dataframes
 def cargar_datos():
@@ -144,17 +148,16 @@ elif opcion == "Historial y Reportes":
 
     st.download_button("Descargar Excel Completo", data=open(ARCHIVO_EXCEL, "rb"), file_name=ARCHIVO_EXCEL)
 
-    st.subheader("Eliminar Registro")
-    id_a_borrar = st.text_input("ID de la operación a eliminar")
-    
-    if st.button("Eliminar operación"):
-        eliminado = False
-        
-if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
+ st.subheader("Eliminar Registro")
+id_a_borrar = st.text_input("ID de la operación a eliminar")
+
+if st.button("Eliminar operación"):
+    eliminado = False
+
+    if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
         df_neg = df_neg[df_neg["ID"].astype(str) != id_a_borrar]
         eliminado = True
 
-    # Intentar eliminar en Ingresos
     if "ID" in df_ing.columns and id_a_borrar in df_ing["ID"].astype(str).values:
         df_ing = df_ing[df_ing["ID"].astype(str) != id_a_borrar]
         eliminado = True
@@ -164,5 +167,3 @@ if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
         st.success("Registro eliminado correctamente.")
     else:
         st.warning("❌ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
-
-
