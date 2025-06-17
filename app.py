@@ -146,23 +146,28 @@ elif opcion == "Historial y Reportes":
 
     st.download_button("Descargar Excel Completo", data=open(ARCHIVO_EXCEL, "rb"), file_name=ARCHIVO_EXCEL)
 
-    st.subheader("Eliminar Registro")
-    id_a_borrar = st.text_input("ID de la operación a eliminar")
+    st.subheader("🗑️ Eliminar Registro")
+id_a_borrar = st.text_input("ID de la operación a eliminar")
 
-    if st.button("Eliminar operación"):
-        eliminado = False
+if st.button("Eliminar operación"):
+    eliminado = False
 
-        if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
-            df_neg = df_neg[df_neg["ID"].astype(str) != id_a_borrar]
+    # Validación para negociaciones
+    if "ID" in df_neg.columns and id_a_borrar in df_neg["ID"].astype(str).values:
+        df_neg = df_neg[df_neg["ID"].astype(str) != id_a_borrar]
+        eliminado = True
+
+    # Validación para ingresos
+    if "ID" in df_ing.columns:
+        df_ing["ID"] = df_ing["ID"].astype(str)
+        if id_a_borrar in df_ing["ID"].values:
+            df_ing = df_ing[df_ing["ID"] != id_a_borrar]
             eliminado = True
 
-        if "ID" in df_ing.columns and id_a_borrar in df_ing["ID"].astype(str).values:
-            df_ing = df_ing[df_ing["ID"].astype(str) != id_a_borrar]
-            eliminado = True
+    if eliminado:
+        guardar_datos(df_neg, df_ing)
+        st.success("✅ Registro eliminado correctamente.")
+    else:
+        st.warning("⚠️ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
 
-        if eliminado:
-            guardar_datos(df_neg, df_ing)
-            st.success("Registro eliminado correctamente.")
-        else:
-            st.warning("❌ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
 
