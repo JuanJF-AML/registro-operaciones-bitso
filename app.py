@@ -7,7 +7,7 @@ ARCHIVO_EXCEL = "registro_operaciones_bitso.xlsx"
 HOJA_NEG = "Negociaciones"
 HOJA_ING = "Ingresos"
 
-# Inicializa el archivo si no existe
+# CREACION ARCHIVO
 def init_excel():
     if not Path(ARCHIVO_EXCEL).exists():
         with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl") as writer:
@@ -18,7 +18,7 @@ def init_excel():
                 "ID", "Fecha", "Hora Ingreso", "Valor Recibido", "Canal", "Asignado a", "Diferencia", "Demora (min)", "Observacion"
             ]).to_excel(writer, sheet_name=HOJA_ING, index=False)
 
-# Carga ambos dataframes
+# Carga ambos dDF
 def cargar_datos():
     df_neg = pd.read_excel(ARCHIVO_EXCEL, sheet_name=HOJA_NEG)
     df_ing = pd.read_excel(ARCHIVO_EXCEL, sheet_name=HOJA_ING)
@@ -26,7 +26,7 @@ def cargar_datos():
     df_ing["Fecha"] = pd.to_datetime(df_ing["Fecha"]).dt.date
     return df_neg, df_ing
 
-# Guarda ambos dataframes
+# Guarda ambos DF
 def guardar_datos(df_neg, df_ing):
     with pd.ExcelWriter(ARCHIVO_EXCEL, engine="openpyxl") as writer:
         df_neg.to_excel(writer, sheet_name=HOJA_NEG, index=False)
@@ -134,7 +134,7 @@ elif opcion == "Historial y Reportes":
     col3.metric("🏦 Ingresado Hoy", f"${ingresado_hoy:,.0f}")
     col4.metric("📈 % Cumplimiento", f"{cumplimiento:.1f}%")
 
-    st.subheader("📁 Historial Completo")
+    st.subheader("Historial Completo")
     tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
 
     with tab1:
