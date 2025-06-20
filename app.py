@@ -120,13 +120,19 @@ elif opcion == "Historial y Reportes":
     st.title("Historial y Reportes")
     col1, col2, col3 = st.columns(3)
     hoy = datetime.now().date()
-    total_hoy = df_neg[df_neg["Fecha"] == hoy]["Esperado COP"].sum()
-    ingresado_hoy = df_ing[df_ing["Fecha"] == hoy]["Valor Recibido"].sum()
-    cumplimiento = (ingresado_hoy / total_hoy * 100) if total_hoy > 0 else 0
+    df_neg_hoy = df_neg[df_neg["Fecha"] == hoy]
+    df_ing_hoy = df_ing[df_ing["Fecha"] == hoy]
 
-    col1.metric("💵 Negociado Hoy (COP)", f"${total_hoy:,.0f}")
-    col2.metric("🏦 Ingresado Hoy", f"${ingresado_hoy:,.0f}")
-    col3.metric("📈 % Cumplimiento", f"{cumplimiento:.1f}%")
+    total_usdt = df_neg_hoy["Monto USDT"].sum()
+    total_cop = df_neg_hoy["Esperado COP"].sum()
+    ingresado_hoy = df_ing_hoy["Valor Recibido"].sum()
+    cumplimiento = (ingresado_hoy / total_cop * 100) if total_cop > 0 else 0
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("💰 USDT Negociado Hoy", f"{total_usdt:,.2f} USDT")
+    col2.metric("💵 Negociado Hoy (COP)", f"${total_cop:,.0f}")
+    col3.metric("🏦 Ingresado Hoy", f"${ingresado_hoy:,.0f}")
+    col4.metric("📈 % Cumplimiento", f"{cumplimiento:.1f}%")
 
     st.subheader("📁 Historial Completo")
     tab1, tab2 = st.tabs(["Negociaciones", "Ingresos"])
