@@ -172,8 +172,8 @@ if st.button("Eliminar operación"):
 
     if eliminado:
         guardar_datos(df_neg, df_ing)
-        st.success("✅ Registro eliminado correctamente.")
+        st.success("Registro eliminado correctamente.")
     else:
-        st.warning("⚠️ No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
+        st.warning("No se encontró el ID en las hojas de Negociaciones ni Ingresos.")
 
 
